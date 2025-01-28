@@ -14,8 +14,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                .authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers("/v1/transactions", "/create-checkout-session").authenticated()
+                .authorizeHttpRequests((auhorize) -> auhorize
+                        .requestMatchers("/v1/transactions", "/v1/transactions/**","/v1/transactions/statistics/total-per-category", "/v1/transactions/statistics/balance","/create-checkout-session").authenticated()
                         .requestMatchers("/webhook").permitAll()
                 )
                 .cors(t -> t.configure(http))
