@@ -4,10 +4,12 @@ import com.er7.financeai.api.model.EstatisticsBalanceResponse;
 import com.er7.financeai.domain.model.Transaction;
 import com.er7.financeai.domain.repository.projection.TotalExpensePerCategory;
 import com.er7.financeai.domain.repository.projection.TransactionBalance;
+import com.er7.financeai.domain.repository.projection.TransactionsReportAi;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -35,5 +37,5 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 """)
     EstatisticsBalanceResponse balanceObject(@Param("userId") String userId);
 
-
+    List<TransactionsReportAi> findByUserIdAndDateBetween(String userId, OffsetDateTime dateAfter, OffsetDateTime dateBefore);
 }
