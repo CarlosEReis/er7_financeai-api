@@ -1,21 +1,22 @@
 package com.er7.financeai.api;
 
+import com.er7.financeai.service.Auth0Service;
 import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
+import com.stripe.model.Subscription;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/create-checkout-session")
+@RequestMapping()
 public class StripeCheckoutController   {
 
     @Value("${stripe.api.key}")
@@ -35,7 +36,13 @@ public class StripeCheckoutController   {
         Stripe.apiKey = stripeApiKey;
     }
 
-    @PostMapping
+    private Auth0Service auth0Service;
+
+    public StripeCheckoutController(Auth0Service auth0Service) {
+        this.auth0Service = auth0Service;
+    }
+
+    @PostMapping("/create-checkout-session")
     public ResponseEntity<Map<String, Object>> createCheckoutSession(Authentication authentication) throws Exception {
 
         // Crie os parametros da sessao
@@ -63,6 +70,26 @@ public class StripeCheckoutController   {
         response.put("id", session.getId()); // Acessando o ID da sessão
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/cancel-plan")
+    public String cancelPlan(Authentication authentication) throws StripeException {
+        String userId = authentication.getName();
+
+        // remove a role no Auth0
+        auth0Service.removeRolePaidIn(userId);
+
+        // pega a subscription da Stripe armazenada no app_metadata do usuario no Auth
+        String subscriptionId = auth0Service.getMetaData(userId).get();
+
+        // encerra do pagamento do usuário na Stripe
+        Subscription subscription = Subscription.retrieve(subscriptionId);
+        Subscription canceledSubscription = subscription.cancel();
+
+        // remove a subscription da Stripe armazenada no app_metadata do usuario no Auth
+        auth0Service.removeSubscriptionAppMetadata(userId);
+
+        return canceledSubscription.getId();
     }
 
 }
