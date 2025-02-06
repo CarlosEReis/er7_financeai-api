@@ -36,7 +36,11 @@ public class StripeWebHook {
                 case "invoice.paid":
                     LOGGER.info("Evento {} detectado: ", event.getType());
                     String userId = returnUserId(event);
+                    Invoice invoice = (Invoice) event.getData().getObject();
+                    LOGGER.info("Usuario: {} - Subscription: {}", userId, invoice.getSubscription());
                     this.auth0Service.addRolePaidIn(userId);
+                    this.auth0Service.addMetaData(userId, invoice.getSubscription());
+
                     break;
                 default:
                     LOGGER.warn("Evento desconhecido NAO TRATADO {}: ", event.getType());
