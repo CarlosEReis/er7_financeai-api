@@ -1,7 +1,11 @@
 package com.er7.financeai.service;
 
+import com.er7.financeai.domain.model.ReportAI;
+import com.er7.financeai.domain.repository.ReportAiRepository;
 import com.er7.financeai.domain.repository.TransactionRepository;
+import com.er7.financeai.domain.repository.projection.ReportAiResume;
 import com.er7.financeai.domain.repository.projection.TransactionsReportAi;
+import jakarta.transaction.Transactional;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
@@ -17,6 +21,7 @@ import java.util.stream.Collectors;
 public class OpenAiService {
 
     private final ChatClient chatClient;
+    private final ReportAiRepository reportAiRepository;
     private final TransactionRepository transactionRepository;
 
     private MessageSource messageSource;
@@ -27,17 +32,35 @@ public class OpenAiService {
     @Value("${financeai.openai.chat.user.msg.prefix}")
     private String messageUserPrefix;
 
-    OpenAiService(ChatClient.Builder chartClient, TransactionRepository transactionRepository1, MessageSource messageSource) {
+    OpenAiService(ChatClient.Builder chartClient, TransactionRepository transactionRepository1, ReportAiRepository reportAiRepository,MessageSource messageSource) {
         this.chatClient = chartClient.build();
-        this.transactionRepository = transactionRepository1;
         this.messageSource = messageSource;
+        this.reportAiRepository = reportAiRepository;
+        this.transactionRepository = transactionRepository1;
     }
 
-    public String generateAiReport(String userId) {
+    public ReportAI buildReportAi(String userId) {
+        String reportAiText = getAiReport(userId);
+        ReportAI reportAI = new ReportAI();
+        reportAI.setReport(reportAiText);
+        reportAI.setUserId(userId);
+        return reportAiRepository.save(reportAI);
+    }
+
+    public List<ReportAiResume> getReportsResume(String userId) {
+        return reportAiRepository.findAllByUserId(userId);
+    }
+
+    @Transactional
+    public ReportAI getReportAiById(Long reportId, String userId) {
+        return reportAiRepository.findByIdAndUserId(reportId, userId);
+    }
+
+    public String getAiReport(String userId) {
         String transactionsForAi = transactionsDataLoadForReport(userId);
         String messageUserFinal = messageUserPrefix.concat(transactionsForAi);
         return chatClient
-            .prompt()
+            .prompt() //.options(ChatOptions.builder().maxTokens(100).build())
             .system(messageSystem)
             .user(messageUserFinal)
             .call().content();

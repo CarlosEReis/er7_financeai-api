@@ -15,7 +15,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests((auhorize) -> auhorize
-                        .requestMatchers("/cancel-plan","/v1/report-ai","/v1/transactions", "/v1/transactions/**","/v1/transactions/statistics/total-per-category", "/v1/transactions/statistics/balance","/create-checkout-session").authenticated()
+                        .requestMatchers("/cancel-plan","/v1/report-ai","/v1/report-ai/resume", "/v1/report-ai/**","/v1/transactions", "/v1/transactions/**","/v1/transactions/statistics/total-per-category", "/v1/transactions/statistics/balance","/create-checkout-session").authenticated()
                         .requestMatchers("/webhook").permitAll()
                 )
                 .cors(t -> t.configure(http))
