@@ -81,7 +81,7 @@ public class OpenAiService {
     }
 
     private List<TransactionsReportAi> getTransactionsForReport(String userId) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now().minusMonths(1);
         var startDate = now.withDayOfMonth(1).toLocalDate().atStartOfDay(now.getOffset()).toOffsetDateTime();
         var endDate = now.with(TemporalAdjusters.lastDayOfMonth()).withHour(23).withMinute(59).withSecond(59);
         return transactionRepository.findByUserIdAndDateBetween(userId, startDate, endDate);
