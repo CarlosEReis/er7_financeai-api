@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  app:
+    image: carloser7/er7_financeai-api
+    container_name: er7_financeai-api
+    ports:
+      - '8081:8080'
+    env_file:
+      - .env
+    depends_on:
+      - db
+    networks:
+      - er7_financeai-net
+    restart: unless-stopped
+  db:
+    image: postgres:16
+    container_name: er7_financeai-db
+    ports:
+      - '5433:5432'
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_SCHEMA}
+    volumes:
+      - pgdata01:/var/lib/postgresql/data
+    networks:
+      - er7_financeai-net
+    restart: unless-stopped
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    container_name: er7_financeai-cloudflare
+    env_file:
+      - .env
+    command: tunnel --no-autoupdate run --token ${TUNEL_TOKEN}
+    networks:
+      - er7_financeai-net
+    restart: unless-stopped
+    depends_on:
+      - app
+volumes:
+  pgdata01:
+    name: er7_financeai-pgdata
+networks:
+  er7_financeai-net:
+    driver: bridge
