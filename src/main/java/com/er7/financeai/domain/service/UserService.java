@@ -23,4 +23,14 @@ public class UserService {
         return repository.findBySub(sub)
             .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    public User findByEmail(String email) {
+        return repository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public User findById(Long id) {
+        return repository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 }
