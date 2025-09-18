@@ -1,4 +1,4 @@
-package com.er7.financeai.service;
+package com.er7.financeai.domain.service;
 
 import com.er7.financeai.domain.model.ReportAI;
 import com.er7.financeai.domain.repository.ReportAiRepository;
@@ -84,6 +84,6 @@ public class OpenAiService {
         OffsetDateTime now = OffsetDateTime.now().minusMonths(1);
         var startDate = now.withDayOfMonth(1).toLocalDate().atStartOfDay(now.getOffset()).toOffsetDateTime();
         var endDate = now.with(TemporalAdjusters.lastDayOfMonth()).withHour(23).withMinute(59).withSecond(59);
-        return transactionRepository.findByUserIdAndDateBetween(userId, startDate, endDate);
+        return transactionRepository.findByUserSubAndDateBetween(userId, startDate, endDate);
     }
 }

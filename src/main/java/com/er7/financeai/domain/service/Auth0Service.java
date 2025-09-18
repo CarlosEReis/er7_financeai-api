@@ -1,4 +1,4 @@
-package com.er7.financeai.service;
+package com.er7.financeai.domain.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.annotation.PostConstruct;
