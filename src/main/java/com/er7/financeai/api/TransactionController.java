@@ -2,19 +2,26 @@ package com.er7.financeai.api;
 
 import com.er7.financeai.api.model.EstatisticsBalanceResponse;
 import com.er7.financeai.api.model.EstatisticsReponse;
+import com.er7.financeai.api.model.request.TransactionRequest;
+import com.er7.financeai.api.model.response.TransactionResponse;
 import com.er7.financeai.domain.model.Transaction;
+import com.er7.financeai.domain.model.User;
 import com.er7.financeai.domain.repository.TransactionRepository;
+import com.er7.financeai.domain.repository.UserRepository;
 import com.er7.financeai.domain.repository.projection.TotalExpensePerCategory;
-import com.er7.financeai.domain.repository.projection.TransactionBalance;
-import jakarta.persistence.EntityNotFoundException;
-import org.springframework.beans.BeanUtils;
+import com.er7.financeai.domain.service.TransactionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import javax.validation.Valid;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,29 +29,63 @@ import java.util.Optional;
 @RequestMapping("v1/transactions")
 public class TransactionController {
 
-    private TransactionRepository transactionRepository;
+    private final TransactionService transactionService;
+    private final TransactionRepository transactionRepository;
+    private final UserRepository userRepository;
 
-    public TransactionController(TransactionRepository transactionRepository){
+    public TransactionController(TransactionService transactionService, TransactionRepository transactionRepository, UserRepository userRepository) {
+        this.userRepository = userRepository;
+        this.transactionService = transactionService;
         this.transactionRepository = transactionRepository;
     }
 
     @GetMapping()
     public ResponseEntity<List<Transaction>> listar(Authentication authentication) {
-        String userId = authentication.getName();
-        List<Transaction> transactions = transactionRepository.findByUserIdOrderByIdDesc(userId);
+        String userSub = authentication.getName();
+        //List<Transaction> transactions = transactionRepository.findByUserIdOrderByIdDesc(userSub);
+        //List<Transaction> transactions = transactionRepository.findByUserSub(userSub);
+        List<Transaction> transactions = transactionService.findAllByUserSub(userSub);
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Transaction> buscar(@PathVariable Long id, Authentication authentication) {
-        Optional<Transaction> transaction = transactionRepository.findById(id);
-        return transaction.isPresent() ? ResponseEntity.ok(transaction.get()) : ResponseEntity.badRequest().build();
+    public ResponseEntity<TransactionResponse> buscar(@PathVariable Long id, Authentication authentication) {
+        var transactionResponse = TransactionResponse.toModelReponse(transactionService.findById(id));
+        return ResponseEntity.ok(transactionResponse);
+    }
+
+    @PostMapping
+    public ResponseEntity<TransactionResponse> criar(@RequestBody @Valid TransactionRequest transactionRequest, @AuthenticationPrincipal Jwt principal, Authentication authentication) {
+        Transaction transaction = transactionRequest.toDomainObject();
+        Transaction savedTransaction = transactionService.save(transaction, authentication.getName());
+        URI uri = ServletUriComponentsBuilder.fromCurrentRequestUri()
+            .path("/{id}")
+            .buildAndExpand(savedTransaction.getId())
+            .toUri();
+        return ResponseEntity.created(uri).body(TransactionResponse.toModelReponse(savedTransaction));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TransactionResponse> atualizar(@PathVariable Long id, @RequestBody TransactionRequest transactionRequest, Authentication authentication) {
+        var transaction = transactionRequest.toDomainObject();
+        //transaction.setUserId(authentication.getName());
+        Transaction transactionUpdated = transactionService.update(id, transaction);
+        return ResponseEntity.ok(TransactionResponse.toModelReponse(transactionUpdated));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id, Authentication authentication) {
+        transactionService.delete(id, authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/statistics/total-per-category")
     public ResponseEntity<List<EstatisticsReponse>> trasactionsPerCategory(Authentication authentication, @RequestParam("top") Integer top) {
         String userId = authentication.getName();
-        List<TotalExpensePerCategory> transactionsPerCategory = transactionRepository.totalExpensePerCategory(userId, top);
+        Optional<User> bySub = userRepository.findBySub(userId);
+
+
+        List<TotalExpensePerCategory> transactionsPerCategory = transactionRepository.totalExpensePerCategory(bySub.get().getId(), top);
 
         if (transactionsPerCategory.isEmpty()) {
             return ResponseEntity.ok(List.of());
@@ -53,48 +94,22 @@ public class TransactionController {
         BigDecimal totalAllCategory = getTotalAllCategory(transactionsPerCategory);
 
         List<EstatisticsReponse> list = transactionsPerCategory.stream()
-            .map(t -> {
-                BigDecimal percentage = calcPercent(t.getSoma(), totalAllCategory);
-                return new EstatisticsReponse(t.getCategoria(), t.getSoma(), percentage);
-            })
-            .toList();
+                .map(t -> {
+                    BigDecimal percentage = calcPercent(t.getSoma(), totalAllCategory);
+                    return new EstatisticsReponse(t.getCategoria(), t.getSoma(), percentage);
+                })
+                .toList();
         return ResponseEntity.ok(list);
     }
 
     @GetMapping("/statistics/balance")
     public ResponseEntity<EstatisticsBalanceResponse> transactionBalance(Authentication authentication) {
         String userId = authentication.getName();
-        EstatisticsBalanceResponse balance = transactionRepository.balanceObject(userId);
+        Optional<User> bySub = userRepository.findBySub(userId);
+        EstatisticsBalanceResponse balance = transactionRepository.balanceObject(bySub.get().getId());
 
         return ResponseEntity.ok(balance);
     }
-
-    @PostMapping
-    public ResponseEntity<Transaction> criar(@RequestBody Transaction transaction, Authentication authentication ) {
-        transaction.setUserId(authentication.getName());
-        Transaction savedTransaction = transactionRepository.save(transaction);
-        return ResponseEntity.ok(savedTransaction);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Transaction> atualizar(@PathVariable Long id, @RequestBody Transaction transaction, Authentication authentication) {
-        var transactionDB = transactionRepository.findById(id).orElseThrow(() -> new EntityNotFoundException(id.toString()));
-        BeanUtils.copyProperties(transaction, transactionDB, "id", "createdAt", "userId");
-        transactionRepository.save(transactionDB);
-        return ResponseEntity.ok(transactionDB);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id, Authentication authentication) {
-        Optional<Transaction> transaction = transactionRepository.findById(id);
-        if (transaction.isPresent()) {
-            transactionRepository.delete(transaction.get());
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
 
     private BigDecimal getTotalAllCategory(List<TotalExpensePerCategory> transactions) {
         if (transactions.isEmpty())
