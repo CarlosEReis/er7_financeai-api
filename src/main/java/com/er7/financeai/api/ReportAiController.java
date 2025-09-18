@@ -2,7 +2,7 @@ package com.er7.financeai.api;
 
 import com.er7.financeai.domain.model.ReportAI;
 import com.er7.financeai.domain.repository.projection.ReportAiResume;
-import com.er7.financeai.service.OpenAiService;
+import com.er7.financeai.domain.service.OpenAiService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;

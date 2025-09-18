@@ -1,6 +1,6 @@
 package com.er7.financeai.webhook;
 
-import com.er7.financeai.service.Auth0Service;
+import com.er7.financeai.domain.service.Auth0Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

@@ -1,6 +1,6 @@
 package com.er7.financeai.api;
 
-import com.er7.financeai.service.Auth0Service;
+import com.er7.financeai.domain.service.Auth0Service;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Subscription;
