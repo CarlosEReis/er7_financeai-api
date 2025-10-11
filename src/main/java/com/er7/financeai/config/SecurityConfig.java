@@ -15,12 +15,22 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests((auhorize) -> auhorize
-                        .requestMatchers("/cancel-plan","/v1/report-ai","/v1/report-ai/resume", "/v1/report-ai/**","/v1/transactions", "/v1/transactions/**","/v1/transactions/statistics/total-per-category", "/v1/transactions/statistics/balance","/create-checkout-session").authenticated()
-                        .requestMatchers("/webhook").permitAll()
+                            .requestMatchers("" +
+                                "/cancel-plan",
+                                "/v1/report-ai",
+                                "/v1/report-ai/resume",
+                                "/v1/report-ai/**",
+                                "/v1/transactions",
+                                "/v1/transactions/**",
+                                "/v1/transactions/statistics/total-per-category",
+                                "/v1/transactions/statistics/balance",
+                                "/create-checkout-session").authenticated()
+                        .requestMatchers("/webhook", "/users").permitAll()
+                        .anyRequest().authenticated()
                 )
                 .cors(t -> t.configure(http))
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/webhook")  // Desabilita CSRF para o webhook
+                        .ignoringRequestMatchers("/webhook", "/users")  // Desabilita CSRF para o webhook
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(Customizer.withDefaults()))
