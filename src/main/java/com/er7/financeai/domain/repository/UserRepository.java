@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    @Query("SELECT u FROM User u join fetch u.group WHERE u.sub = :sub")
+    @Query("SELECT u FROM User u left join fetch u.group WHERE u.sub = :sub")
     public Optional<User> findBySub(String sub);
     public Optional<User> findByEmail(String email);
 }
