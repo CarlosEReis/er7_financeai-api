@@ -21,7 +21,7 @@ public class InvitationService {
 
     public InvitationService(InvitationRepository invitationRepository, UserService userService,
                              GroupService groupService, TransactionService transactionService,
-                            EmailService emailService) {
+                             EmailService emailService) {
         this.invitationRepository = invitationRepository;
         this.userService = userService;
         this.groupService = groupService;
@@ -38,14 +38,14 @@ public class InvitationService {
 
         emailService.sendEmail(
                 inviter.getEmail(),
-                List.of(inviter.getEmail()),
+                List.of(invitee.getEmail()),
                 invitationCreated.getCode().toString());
         return invitationCreated;
     }
 
     public Invitation findByCode(UUID code) {
         return invitationRepository.findByCode(code)
-            .orElseThrow(() -> new RuntimeException("Invitation not found"));
+                .orElseThrow(() -> new RuntimeException("Invitation not found"));
     }
 
     @Transactional
