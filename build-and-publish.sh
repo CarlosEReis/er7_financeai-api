@@ -18,7 +18,7 @@ git push origin main
   
 print_status "MAVEN" "⚙️ " "$ARROWS Buildando o projeto..."
 rm -rf target/
-mvn clean package -DskipTests
+mvn clean package -Dmaven.test.skip=true
 
 print_status "DOCKER" "🐳" "$ARROWS Buildando a imagem..."
 docker build -t carloser7/er7_financeai-api:latest .
@@ -27,7 +27,7 @@ print_status "DOCKER" "🚀" "$ARROWS Publicando a imagem..."
 docker push carloser7/er7_financeai-api:latest
 
 print_status "SSH" "🔑" "$ARROWS Acessando servidor de aplicaçao remoto..."
-ssh reis@192.168.1.20 << 'ENDSSH'
+ssh reis@192.168.15.20 << 'ENDSSH'
     cd projetos/er7_financeai-api/
 
     printf "\n\e[1m%-6s\e[0m: %s \e[1m%s\e[0m\n" "DOCKER" "🔄" "➡️➡️➡️➡️➡️➡️➡️➡️➡️➡️  Atualizando imagem da aplicaçao..."
