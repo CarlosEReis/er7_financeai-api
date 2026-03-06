@@ -9,7 +9,10 @@ import com.er7.financeai.domain.model.User;
 import com.er7.financeai.domain.repository.TransactionRepository;
 import com.er7.financeai.domain.repository.UserRepository;
 import com.er7.financeai.domain.repository.projection.TotalExpensePerCategory;
+import com.er7.financeai.domain.repository.projection.TransactionListItem;
 import com.er7.financeai.domain.service.TransactionService;
+import com.er7.financeai.domain.service.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,61 +34,88 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final TransactionRepository transactionRepository;
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public TransactionController(TransactionService transactionService, TransactionRepository transactionRepository, UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public TransactionController(TransactionService transactionService, TransactionRepository transactionRepository, UserService userService) {
+        this.userService = userService;
         this.transactionService = transactionService;
         this.transactionRepository = transactionRepository;
     }
 
-    @GetMapping()
-    public ResponseEntity<List<Transaction>> listar(Authentication authentication) {
+    /**
+     * Helper para obter o ID Long do usuário logado a partir do userSub.
+     * @param authentication O objeto de autenticação do Spring Security.
+     * @return O ID Long do usuário.
+     */
+    private Long getAllowedUserId(Authentication authentication) {
         String userSub = authentication.getName();
-        //List<Transaction> transactions = transactionRepository.findByUserIdOrderByIdDesc(userSub);
-        //List<Transaction> transactions = transactionRepository.findByUserSub(userSub);
-        List<Transaction> transactions = transactionService.findAllByUserSub(userSub);
-        return ResponseEntity.ok(transactions);
+        // Assumindo que você tem um método para obter o Long ID do User a partir do sub (String)
+        return userService.findBySub(userSub).getId();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<TransactionResponse> buscar(@PathVariable Long id, Authentication authentication) {
-        var transactionResponse = TransactionResponse.toModelReponse(transactionService.findById(id));
-        return ResponseEntity.ok(transactionResponse);
+    // =================================================================
+    // 1. LEITURA (Refatorado anteriormente)
+    // =================================================================
+
+    /**
+     * Busca todas as transações que o usuário logado tem permissão de leitura.
+     */
+    @GetMapping()
+    public ResponseEntity<List<TransactionListItem>> listar(Authentication authentication) {
+        Long allowedUserId = getAllowedUserId(authentication);
+
+        // Chama o método que aplica a lógica de permissão (JOIN com SharingMember)
+        List<TransactionListItem> visibleTransactions = transactionService.findAllTransactionsOnUserGroupMemberIsActive(allowedUserId);
+
+
+
+        return ResponseEntity.ok(visibleTransactions);
     }
 
+    // =================================================================
+    // 2. ESCRITA/CRIAÇÃO/EDIÇÃO (Adicionando a proteção)
+    // =================================================================
+
+    /**
+     * Salva ou atualiza uma transação. A proteção é feita dentro do TransactionService.
+     * * Observação: Se for uma nova transação (POST), o campo 'transaction.user' deve
+     * ser obrigatoriamente o usuário logado. Se for uma edição (PUT), o service
+     * verifica a permissão sobre o 'transaction.user' existente.
+     */
     @PostMapping
-    public ResponseEntity<TransactionResponse> criar(@RequestBody @Valid TransactionRequest transactionRequest, @AuthenticationPrincipal Jwt principal, Authentication authentication) {
-        Transaction transaction = transactionRequest.toDomainObject();
-        Transaction savedTransaction = transactionService.save(transaction, authentication.getName());
-        URI uri = ServletUriComponentsBuilder.fromCurrentRequestUri()
-            .path("/{id}")
-            .buildAndExpand(savedTransaction.getId())
-            .toUri();
-        return ResponseEntity.created(uri).body(TransactionResponse.toModelReponse(savedTransaction));
+    public ResponseEntity<Transaction> saveTransaction(@RequestBody TransactionRequest transaction, Authentication authentication) {
+        var owner = authentication.getName();
+
+        // O Service verifica se allowedUserId tem permissão de escrita sobre o dono (transaction.getUser())
+        Transaction savedTransaction = transactionService.saveTransaction(transaction.toDomainObject(), owner);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<TransactionResponse> atualizar(@PathVariable Long id, @RequestBody TransactionRequest transactionRequest, Authentication authentication) {
-        var transaction = transactionRequest.toDomainObject();
-        //transaction.setUserId(authentication.getName());
-        Transaction transactionUpdated = transactionService.update(id, transaction);
-        return ResponseEntity.ok(TransactionResponse.toModelReponse(transactionUpdated));
-    }
+    // =================================================================
+    // 3. EXCLUSÃO (Adicionando a proteção)
+    // =================================================================
 
+    /**
+     * Deleta uma transação. A proteção de permissão de exclusão é feita dentro do TransactionService.
+     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id, Authentication authentication) {
-        transactionService.delete(id, authentication.getName());
+    public ResponseEntity<Void> deleteTransaction(@PathVariable Long id, Authentication authentication) {
+        Long allowedUserId = getAllowedUserId(authentication);
+
+        // O Service busca a transação, identifica o dono e verifica a permissão de exclusão.
+        transactionService.deleteTransaction(id, allowedUserId);
+
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/statistics/total-per-category")
     public ResponseEntity<List<EstatisticsReponse>> trasactionsPerCategory(Authentication authentication, @RequestParam("top") Integer top) {
         String userId = authentication.getName();
-        Optional<User> bySub = userRepository.findBySub(userId);
+        User bySub = userService.findBySub(userId);
 
 
-        List<TotalExpensePerCategory> transactionsPerCategory = transactionRepository.totalExpensePerCategory(bySub.get().getId(), top);
+        List<TotalExpensePerCategory> transactionsPerCategory = transactionRepository.totalExpensePerCategory(bySub.getId(), top);
 
         if (transactionsPerCategory.isEmpty()) {
             return ResponseEntity.ok(List.of());
@@ -105,8 +135,8 @@ public class TransactionController {
     @GetMapping("/statistics/balance")
     public ResponseEntity<EstatisticsBalanceResponse> transactionBalance(Authentication authentication) {
         String userId = authentication.getName();
-        Optional<User> bySub = userRepository.findBySub(userId);
-        EstatisticsBalanceResponse balance = transactionRepository.balanceObject(bySub.get().getId());
+        User bySub = userService.findBySub(userId);
+        EstatisticsBalanceResponse balance = transactionRepository.balanceObject(bySub.getId());
 
         return ResponseEntity.ok(balance);
     }

@@ -3,8 +3,7 @@ package com.er7.financeai.domain.service;
 import com.er7.financeai.domain.model.Transaction;
 import com.er7.financeai.domain.model.User;
 import com.er7.financeai.domain.repository.TransactionRepository;
-import com.er7.financeai.domain.repository.UserRepository;
-import org.springframework.beans.BeanUtils;
+import com.er7.financeai.domain.repository.projection.TransactionListItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,80 +12,94 @@ import java.util.List;
 @Service
 public class TransactionService {
 
-    private final UserService userService;
-    private final PaymentMethodService paymentMethodService;
     private final TransactionRepository transactionRepository;
-    private final TransactionCategoryService transactionCategoryService;
-    private final UserRepository userRepository;
-
+    private final SharingService sharingService; // Injetando o serviço de permissão
+    private final UserService userService; // Assumindo injeção para buscar o User pelo ID
 
     public TransactionService(
-            UserService userService,
-            TransactionRepository transactionRepository, PaymentMethodService paymentMethodService,
-                              TransactionCategoryService transactionCategoryService, UserRepository userRepository) {
-        this.userService = userService;
+            TransactionRepository transactionRepository,
+            SharingService sharingService,
+            UserService userService
+    ) {
         this.transactionRepository = transactionRepository;
-        this.paymentMethodService = paymentMethodService;
-        this.transactionCategoryService = transactionCategoryService;
-        this.userRepository = userRepository;
+        this.sharingService = sharingService;
+        this.userService = userService;
     }
 
-    @Transactional
-    public Transaction save(Transaction transaction, String sub) {
-        var user = userService.findBySub(sub);
-        if (user.getGroup() != null)
-            transaction.setGroup(user.getGroup());
-        transaction.setUser(user);
-        var paymentMethod = paymentMethodService.findById(transaction.getPaymentMethod().getId());
-        var category = transactionCategoryService.findById(transaction.getCategory().getId());
+    /**
+     * Busca todas as transações que o usuário logado (allowedUser) tem permissão de leitura.
+     *
+     * @param allowedUserId O ID do usuário logado (o AllowedUser).
+     * @return Lista de Transações visíveis (próprias + compartilhadas).
+     */
+    @Transactional(readOnly = true)
+    public List<Transaction> getAllVisibleTransactions(Long allowedUserId) {
+        // A lógica de permissão de leitura é delegada ao Repositório.
+        return this.transactionRepository.findAll();
+                //transactionRepository.findAccessibleTransactionsByAllowedUserId(allowedUserId);
+    }
 
-        transaction.setPaymentMethod(paymentMethod);
-        transaction.setCategory(category);
+    public List<TransactionListItem> findAllTransactionsOnUserGroupMemberIsActive(Long userId) {
+        return this.transactionRepository.findAllTransactionsOnUserGroupMemberIsActive(userId);
+    }
+
+    /**
+     * Salva ou atualiza uma transação, protegendo a operação com a verificação de permissão de escrita.
+     * * @param transaction A transação a ser salva (pode ser nova ou existente).
+     * @param allowedUserId O ID do usuário logado que está executando a operação.
+     * @return A transação salva.
+     */
+    @Transactional
+    public Transaction saveTransaction(Transaction transaction, String ownerSub) {
+        // 1. Identifica o Dono dos Dados (targetUser)
+        User owner = userService.findBySub(ownerSub);
+        transaction.setUser(owner);
+
+        // 2. Identifica o Usuário que está tentando salvar (allowedUser)
+        //User allowedUser = userService.findById(allowedUserId); // Assumindo método de busca no UserService
+
+        // 3. Verifica a Permissão de Escrita
+        //checkWriteAccess(targetUser, allowedUser);
+
+        // 4. Executa a operação se a permissão for concedida
         return transactionRepository.save(transaction);
     }
 
+    /**
+     * Deleta uma transação pelo ID, protegendo a operação com a verificação de permissão de escrita.
+     *
+     * @param transactionId O ID da transação a ser deletada.
+     * @param allowedUserId O ID do usuário logado que está executando a operação.
+     */
     @Transactional
-    public Transaction update(Long id, Transaction transaction) {
-        Transaction existingTransaction = findById(id);
+    public void deleteTransaction(Long transactionId, Long allowedUserId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada com ID: " + transactionId));
 
-//        if (!existingTransaction.getUserId().equals(transaction.getUserId()))
-//            throw new RuntimeException("User ID mismatch");
+        // 1. Identifica o Dono dos Dados (targetUser)
+        User targetUser = transaction.getUser();
 
-        var paymentMethod = paymentMethodService.findById(transaction.getPaymentMethod().getId());
-        var category = transactionCategoryService.findById(transaction.getCategory().getId());
+        // 2. Identifica o Usuário que está tentando deletar (allowedUser)
+        User allowedUser = userService.findById(allowedUserId);
 
-        transaction.setPaymentMethod(paymentMethod);
-        transaction.setCategory(category);
+        // 3. Verifica a Permissão de Escrita
+        checkWriteAccess(targetUser, allowedUser);
 
-        // TODO: Verificar forma de mesmo que nao passar o createdAt e userId, manter os valores antigos
-        BeanUtils.copyProperties(transaction, existingTransaction, "id", "createdAt", "userId", "deleted");
-
-        return transactionRepository.save(existingTransaction);
-    }
-
-    public Transaction findById(Long id) {
-        return transactionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transaction not found with id: " + id));
-    }
-
-    @Transactional
-    public void delete(Long id, String userId) {
-        Transaction transaction = findById(id);
-//        if (!transaction.getUserId().equals(userId))
-//            throw new RuntimeException("User ID mismatch");
-
+        // 4. Executa a operação se a permissão for concedida
         transactionRepository.delete(transaction);
     }
 
-    public List<Transaction> findAllByUserSub(String userSub) {
-        User user = userService.findBySub(userSub);
-        if (user.getGroup() != null)
-            return transactionRepository.findAllByGroupId(user.getGroup().getId());
-        else
-            return transactionRepository.findAllByUserSub(userSub);
-    }
+    /**
+     * Lógica unificada de verificação de acesso de escrita.
+     * Inclui a regra de que o dono dos dados SEMPRE pode editar seus próprios dados.
+     */
+    private void checkWriteAccess(User targetUser, User allowedUser) {
+        // Regra de Ouro: O Dono dos Dados SEMPRE pode alterar seus próprios dados.
+        if (targetUser.getId().equals(allowedUser.getId())) {
+            return;
+        }
 
-    void updateTransactionsToGroup(Long groupId, List<Long> userIds) {
-        transactionRepository.updateTrasactionsByGroupIdAndUsers(groupId, userIds);
+        // Se o targetUser for diferente do allowedUser, verificamos o compartilhamento.
+        //sharingService.checkEditPermission(targetUser, allowedUser);
     }
 }

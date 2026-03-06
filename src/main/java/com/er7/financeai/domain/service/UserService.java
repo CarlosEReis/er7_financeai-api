@@ -21,7 +21,7 @@ public class UserService {
 
     public User findBySub(String sub) {
         return repository.findBySub(sub)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> new RuntimeException("nÃO ENCONTRADO O USUÁRIO PARA O SUB " + sub));
     }
 
     public User findByEmail(String email) {

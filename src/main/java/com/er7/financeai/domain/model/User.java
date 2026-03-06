@@ -32,10 +32,10 @@ public class User {
     @UpdateTimestamp
     private OffsetDateTime updatedAt;
 
-    @ManyToOne
-    @JsonIgnore
-    @JoinColumn(name = "group_id")
-    private Group group;
+    //@ManyToOne
+    //@JsonIgnore
+    //@JoinColumn(name = "group_id")
+    //private Group group;
 
     public Long getId() {
         return id;
@@ -93,13 +93,13 @@ public class User {
         this.updatedAt = updatedAt;
     }
 
-    public Group getGroup() {
-        return group;
-    }
+    //public Group getGroup() {
+    //    return group;
+    //}
 
-    public void setGroup(Group group) {
-        this.group = group;
-    }
+    //public void setGroup(Group group) {
+    //    this.group = group;
+    //}
 
     @Override
     public boolean equals(Object o) {

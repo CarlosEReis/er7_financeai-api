@@ -3,7 +3,6 @@ package com.er7.financeai.domain.model;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.data.annotation.CreatedBy;
 
 import java.time.OffsetDateTime;
 import java.util.Objects;
@@ -29,6 +28,7 @@ public class Invitation {
     private User invitee;
 
     @ManyToOne
+    @JoinColumn(name = "group_id")
     private Group group;
 
     @Enumerated(EnumType.STRING)
