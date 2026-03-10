@@ -35,8 +35,8 @@ public class GroupService {
         return groupRepository.findById(groupId).get();
     }
 
-    public List<Group> findAllByUser(String userSub) {
+    public List<com.er7.financeai.domain.repository.projection.Group> findAllByUser(String userSub) {
         var owner = userService.findBySub(userSub);
-        return this.groupRepository.findAllByOwnerId(owner.getId());
+        return this.groupRepository.findAllByMembers(owner.getSub());
     }
 }

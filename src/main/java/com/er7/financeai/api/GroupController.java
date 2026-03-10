@@ -33,7 +33,7 @@ public class GroupController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Group>> listAll(Authentication autentication){
+    public ResponseEntity<List<com.er7.financeai.domain.repository.projection.Group>> listAll(Authentication autentication){
         return ResponseEntity.ok(this.groupService.findAllByUser(autentication.getName()));
     }
 }
