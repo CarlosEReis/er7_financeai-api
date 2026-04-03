@@ -12,7 +12,8 @@ public record TransactionRequest (
         @NotNull OffsetDateTime date,
         @NotNull CategoryRequest category,
         @NotNull PaymentMethodRequest paymentMethod,
-        @NotNull GroupRequest group
+        @NotNull GroupRequest group,
+        @NotNull boolean recurring
 ) {
 
         public Transaction toDomainObject() {
@@ -33,6 +34,8 @@ public record TransactionRequest (
         Group group = new Group();
         group.setId(this.group.id);
         transaction.setGroup(group);
+
+        transaction.setRecurring(this.recurring);
 
         return transaction;
     }

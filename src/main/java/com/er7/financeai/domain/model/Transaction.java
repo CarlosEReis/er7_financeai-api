@@ -30,7 +30,7 @@ public class Transaction {
     @ManyToOne
     private TransactionCategory category;
 
-    @Column(name = "date_transaction")
+    @Column(name = "date_process")
     private OffsetDateTime date;
 
     @NotNull
@@ -51,6 +51,10 @@ public class Transaction {
     @ManyToOne
     @JoinColumn(name = "group_id")
     private Group group;
+
+    @NotNull
+    @Column(name = "recurring")
+    private boolean isRecurring;
 
     public Long getId() {
         return id;
@@ -146,6 +150,14 @@ public class Transaction {
 
     public void setGroup(Group group) {
         this.group = group;
+    }
+
+    public boolean isRecurring() {
+        return isRecurring;
+    }
+
+    public void setRecurring(boolean recurring) {
+        isRecurring = recurring;
     }
 
     @Override

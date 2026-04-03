@@ -29,7 +29,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             tc.name as categoria,
             g.name as grupo,
             t.amount as amount,
-            t.created_at as createdAt
+            t.created_at as createdAt,
+            t.date_process as dateProcess
         from transactions t
         inner join transaction_category tc on tc.id = t.category_id
         inner join payment_method pm on pm.id = t.payment_method_id

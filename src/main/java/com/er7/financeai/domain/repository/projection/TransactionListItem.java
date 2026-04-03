@@ -18,4 +18,5 @@ public interface TransactionListItem {
 
     BigDecimal getAmount();
     Instant getCreatedAt();
+    Instant getDateProcess();
 }

@@ -7,7 +7,11 @@ import com.er7.financeai.domain.repository.projection.TransactionListItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class TransactionService {
@@ -50,19 +54,19 @@ public class TransactionService {
      * @return A transação salva.
      */
     @Transactional
-    public Transaction saveTransaction(Transaction transaction, String ownerSub) {
+    public List<Transaction> saveTransaction(Transaction transaction, String ownerSub) {
         // 1. Identifica o Dono dos Dados (targetUser)
         User owner = userService.findBySub(ownerSub);
         transaction.setUser(owner);
 
-        // 2. Identifica o Usuário que está tentando salvar (allowedUser)
-        //User allowedUser = userService.findById(allowedUserId); // Assumindo método de busca no UserService
+        List<Transaction> transactions = new ArrayList<>();
 
-        // 3. Verifica a Permissão de Escrita
-        //checkWriteAccess(targetUser, allowedUser);
+        if (transaction.isRecurring()) {
+            transactionRepository.saveAll(generateRecurrenceTransactionsList(transaction));
+        }
 
-        // 4. Executa a operação se a permissão for concedida
-        return transactionRepository.save(transaction);
+        var savedTransaction = transactionRepository.save(transaction);
+        return List.of(savedTransaction);
     }
 
     /**
@@ -87,6 +91,37 @@ public class TransactionService {
 
         // 4. Executa a operação se a permissão for concedida
         transactionRepository.delete(transaction);
+    }
+
+    private List<Transaction> generateRecurrenceTransactionsList(Transaction transactionBase) {
+        List<Transaction> transactionsRecurrences = new ArrayList<>();
+
+        int currentYear = OffsetDateTime.now().getYear();
+        var nextMonthDate = transactionBase.getDate();
+
+        while(nextMonthDate.getYear() == currentYear) {
+
+            Transaction transaction = new Transaction();
+            transaction.setDate(nextMonthDate);
+
+            transaction.setName(transactionBase.getName() + " - " + getRenameTransaction(nextMonthDate));
+            transaction.setAmount(transactionBase.getAmount());
+            transaction.setType(transactionBase.getType());
+            transaction.setRecurring(true);
+            transaction.setCategory(transactionBase.getCategory());
+            transaction.setPaymentMethod(transactionBase.getPaymentMethod());
+            transaction.setGroup(transactionBase.getGroup());
+            transaction.setUser(transactionBase.getUser());
+
+            transactionsRecurrences.add(transaction);
+            nextMonthDate = nextMonthDate.plusMonths(1);
+        }
+
+        return transactionsRecurrences;
+    }
+
+    private static String getRenameTransaction(OffsetDateTime date) {
+        return date.getMonth().getDisplayName(TextStyle.FULL, new Locale("pt", "BR"));
     }
 
     /**
