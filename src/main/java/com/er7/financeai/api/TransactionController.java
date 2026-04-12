@@ -3,6 +3,8 @@ package com.er7.financeai.api;
 import com.er7.financeai.api.model.EstatisticsBalanceResponse;
 import com.er7.financeai.api.model.EstatisticsReponse;
 import com.er7.financeai.api.model.request.TransactionRequest;
+import com.er7.financeai.domain.filter.TransactionFilter;
+import com.er7.financeai.api.model.request.TrasanctionUpdatePaymentRequest;
 import com.er7.financeai.domain.model.Transaction;
 import com.er7.financeai.domain.model.User;
 import com.er7.financeai.domain.repository.TransactionRepository;
@@ -42,11 +44,11 @@ public class TransactionController {
     }
 
     @GetMapping()
-    public ResponseEntity<List<TransactionListItem>> listar(Authentication authentication) {
+    public ResponseEntity<List<TransactionListItem>> listar(TransactionFilter transactionFilter, Authentication authentication) {
         Long allowedUserId = getAllowedUserId(authentication);
 
         // Chama o metodo que aplica a lógica de permissão (JOIN com SharingMember)
-        List<TransactionListItem> visibleTransactions = transactionService.findAllTransactionsOnUserGroupMemberIsActive(allowedUserId);
+        List<TransactionListItem> visibleTransactions = transactionService.findAllTransactionsOnUserGroupMemberIsActive(transactionFilter, allowedUserId);
 
         return ResponseEntity.ok(visibleTransactions);
     }
@@ -65,6 +67,27 @@ public class TransactionController {
         var savedTransaction = transactionService.saveTransaction(transaction.toDomainObject(), owner);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Transaction> updateTransaction(@PathVariable Long id, @RequestBody TransactionRequest transaction, Authentication authentication) {
+        var owner = authentication.getName();
+        var transactionUpdated = transactionService.update(id, transaction.toDomainObject(), owner);
+        return ResponseEntity.status(HttpStatus.OK).body(transactionUpdated);
+    }
+
+    @PutMapping("/{id}/payment-open")
+    public ResponseEntity<Void> paymentOpen(@PathVariable Long id, @RequestBody TrasanctionUpdatePaymentRequest statuRequest, Authentication authentication) {
+        var owner = authentication.getName();
+        transactionService.updateStatusPayment(id, owner, statuRequest.statusPayment());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/payment-close")
+    public ResponseEntity<Void> paymentClose(@PathVariable Long id, @RequestBody TrasanctionUpdatePaymentRequest statuRequest, Authentication authentication) {
+        var owner = authentication.getName();
+        transactionService.updateStatusPayment(id, owner, statuRequest.statusPayment());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")
@@ -104,7 +127,6 @@ public class TransactionController {
         String userId = authentication.getName();
         User bySub = userService.findBySub(userId);
         EstatisticsBalanceResponse balance = transactionRepository.balanceObject(bySub.getId());
-
         return ResponseEntity.ok(balance);
     }
 

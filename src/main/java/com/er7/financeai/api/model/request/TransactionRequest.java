@@ -13,7 +13,9 @@ public record TransactionRequest (
         @NotNull CategoryRequest category,
         @NotNull PaymentMethodRequest paymentMethod,
         @NotNull GroupRequest group,
-        @NotNull boolean recurring
+        @NotNull PaymentType paymentType,
+        @NotNull Integer numberParcels,
+        @NotNull StatusPayment statusPayment
 ) {
 
         public Transaction toDomainObject() {
@@ -22,6 +24,7 @@ public record TransactionRequest (
         transaction.setName(this.name);
         transaction.setAmount(this.amount);
         transaction.setDate(this.date);
+        transaction.setStatusPayment(this.statusPayment);
 
         TransactionCategory categoryEntity = new TransactionCategory();
         categoryEntity.setId(this.category.id());
@@ -35,7 +38,8 @@ public record TransactionRequest (
         group.setId(this.group.id);
         transaction.setGroup(group);
 
-        transaction.setRecurring(this.recurring);
+        transaction.setPaymentType(this.paymentType);
+        transaction.setNumberInstallments(this.numberParcels);
 
         return transaction;
     }

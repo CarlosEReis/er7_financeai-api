@@ -1,5 +1,6 @@
 package com.er7.financeai.api.model.response;
 
+import com.er7.financeai.domain.model.StatusPayment;
 import com.er7.financeai.domain.model.Transaction;
 import com.er7.financeai.domain.model.TransactionType;
 
@@ -13,7 +14,8 @@ public record TransactionResponse(
     BigDecimal amount,
     Category category,
     OffsetDateTime date,
-    PaymentMethod paymentMethod
+    PaymentMethod paymentMethod,
+    StatusPayment statusPayment
 ) {
     public record Category(Long id, String name) {}
     public record PaymentMethod(Long id, String name) {}
@@ -30,7 +32,8 @@ public record TransactionResponse(
             transaction.getDate(),
             transaction.getPaymentMethod() != null
                     ? new PaymentMethod(transaction.getPaymentMethod().getId(), transaction.getPaymentMethod().getName())
-                    : null
+                    : null,
+            transaction.getStatusPayment()
         );
     }
 }

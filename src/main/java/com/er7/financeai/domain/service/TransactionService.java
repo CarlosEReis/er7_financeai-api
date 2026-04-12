@@ -1,11 +1,16 @@
 package com.er7.financeai.domain.service;
 
+import com.er7.financeai.domain.filter.TransactionFilter;
+import com.er7.financeai.domain.model.PaymentType;
+import com.er7.financeai.domain.model.StatusPayment;
 import com.er7.financeai.domain.model.Transaction;
 import com.er7.financeai.domain.model.User;
 import com.er7.financeai.domain.repository.TransactionRepository;
 import com.er7.financeai.domain.repository.projection.TransactionListItem;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
 
 import java.time.OffsetDateTime;
 import java.time.format.TextStyle;
@@ -43,8 +48,20 @@ public class TransactionService {
                 //transactionRepository.findAccessibleTransactionsByAllowedUserId(allowedUserId);
     }
 
-    public List<TransactionListItem> findAllTransactionsOnUserGroupMemberIsActive(Long userId) {
-        return this.transactionRepository.findAllTransactionsOnUserGroupMemberIsActive(userId);
+    @Transactional
+    public void updateStatusPayment(Long transactionID, String ownerSubUpdate, StatusPayment statusPayment) {
+        var transaction = findByIdOrFail(transactionID);
+        if (!isOwner(transaction, ownerSubUpdate)) throw new IllegalCallerException("You are not the owner of this transaction");
+        transaction.setStatusPayment(statusPayment);
+        System.out.println("StatusPayment" + statusPayment);
+        transactionRepository.save(transaction);
+    }
+
+    public List<TransactionListItem> findAllTransactionsOnUserGroupMemberIsActive(TransactionFilter filter, Long userId) {
+        System.out.println("User" + userId);
+        return this.transactionRepository
+            .findAllTransactionsOnUserGroupMemberIsActive(
+                    filter.dateProcessStar(), filter.dateProcessEnd(), userId);
     }
 
     /**
@@ -61,12 +78,36 @@ public class TransactionService {
 
         List<Transaction> transactions = new ArrayList<>();
 
-        if (transaction.isRecurring()) {
-            transactionRepository.saveAll(generateRecurrenceTransactionsList(transaction));
+
+        if (PaymentType.RECORRENTE.equals(transaction.getPaymentType())) {
+            transactions = transactionRepository.saveAll(
+                    generateRecurrenceTransactionsList(transaction));
+            return transactions;
+        }
+
+        if (PaymentType.PARCELADO.equals(transaction.getPaymentType())) {
+            System.out.println("Parcelado" + transaction.getPaymentType());
+            System.out.println("Parcelado" + transaction.getNumberInstallments());
+            transactions = transactionRepository.saveAll(generateParcelTransactionsList(transaction));
+            return transactions;
         }
 
         var savedTransaction = transactionRepository.save(transaction);
         return List.of(savedTransaction);
+    }
+
+    @Transactional
+    public Transaction update(Long id, Transaction transaction, String ownerSub) {
+        var transactionDb = findByIdOrFail(id);
+        if (!ObjectUtils.nullSafeEquals(transactionDb.getUser().getSub(), ownerSub))
+            throw new RuntimeException("Transaction not found");
+        BeanUtils.copyProperties(transaction, transactionDb, "id", "deleted", "created", "updated", "user");
+        return transactionRepository.save(transactionDb);
+    }
+
+    private Transaction findByIdOrFail(Long id) {
+        return transactionRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Transaction not found"));
     }
 
     /**
@@ -104,10 +145,10 @@ public class TransactionService {
             Transaction transaction = new Transaction();
             transaction.setDate(nextMonthDate);
 
-            transaction.setName(transactionBase.getName() + " - " + getRenameTransaction(nextMonthDate));
+            transaction.setName(transactionBase.getName() + " - " + getRenameRecorrentTransaction(nextMonthDate));
             transaction.setAmount(transactionBase.getAmount());
             transaction.setType(transactionBase.getType());
-            transaction.setRecurring(true);
+            transaction.setPaymentType(PaymentType.RECORRENTE);
             transaction.setCategory(transactionBase.getCategory());
             transaction.setPaymentMethod(transactionBase.getPaymentMethod());
             transaction.setGroup(transactionBase.getGroup());
@@ -120,7 +161,46 @@ public class TransactionService {
         return transactionsRecurrences;
     }
 
-    private static String getRenameTransaction(OffsetDateTime date) {
+    private List<Transaction> generateParcelTransactionsList(Transaction transactionBase) {
+        List<Transaction> transactionsParcial = new ArrayList<>();
+
+        //TODO: ajustar
+        int currentYear = OffsetDateTime.now().getYear();
+        var nextMonthDate = transactionBase.getDate();
+
+        for (int i = 1; i <= transactionBase.getNumberInstallments(); i++) {
+            Transaction transaction = new Transaction();
+            transaction.setDate(nextMonthDate);
+
+            transaction.setName(transactionBase.getName() + " - " + i + "/" + transactionBase.getNumberInstallments() + " em " + getRenameParcelTransaction(nextMonthDate));
+            transaction.setAmount(transactionBase.getAmount());
+            transaction.setType(transactionBase.getType());
+            transaction.setPaymentType(PaymentType.PARCELADO);
+            transaction.setCategory(transactionBase.getCategory());
+            transaction.setPaymentMethod(transactionBase.getPaymentMethod());
+            transaction.setGroup(transactionBase.getGroup());
+            transaction.setUser(transactionBase.getUser());
+            transaction.setStatusPayment(transactionBase.getStatusPayment());
+
+            transaction.setNumberInstallments(transactionBase.getNumberInstallments());
+
+            transactionsParcial.add(transaction);
+            nextMonthDate = nextMonthDate.plusMonths(1);
+        }
+
+
+//        while(nextMonthDate.getYear() == currentYear) {
+//
+//
+//        }
+        return transactionsParcial;
+    }
+
+    private static String getRenameRecorrentTransaction(OffsetDateTime date) {
+        return date.getMonth().getDisplayName(TextStyle.FULL, new Locale("pt", "BR"));
+    }
+
+    private static String getRenameParcelTransaction(OffsetDateTime date) {
         return date.getMonth().getDisplayName(TextStyle.FULL, new Locale("pt", "BR"));
     }
 
@@ -136,5 +216,9 @@ public class TransactionService {
 
         // Se o targetUser for diferente do allowedUser, verificamos o compartilhamento.
         //sharingService.checkEditPermission(targetUser, allowedUser);
+    }
+
+    private boolean isOwner(Transaction transaction, String ownerSub) {
+        return transaction.getUser().getSub().equals(ownerSub);
     }
 }

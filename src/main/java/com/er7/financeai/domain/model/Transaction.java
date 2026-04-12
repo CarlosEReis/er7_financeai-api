@@ -33,6 +33,9 @@ public class Transaction {
     @Column(name = "date_process")
     private OffsetDateTime date;
 
+    @Enumerated(EnumType.STRING)
+    private StatusPayment statusPayment;
+
     @NotNull
     @CreationTimestamp
     private OffsetDateTime createdAt;
@@ -52,9 +55,11 @@ public class Transaction {
     @JoinColumn(name = "group_id")
     private Group group;
 
-    @NotNull
-    @Column(name = "recurring")
-    private boolean isRecurring;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "paymentType")
+    private PaymentType paymentType;
+
+    private Integer numberInstallments;
 
     public Long getId() {
         return id;
@@ -112,6 +117,14 @@ public class Transaction {
         this.date = date;
     }
 
+    public StatusPayment getStatusPayment() {
+        return statusPayment;
+    }
+
+    public void setStatusPayment(StatusPayment statusPayment) {
+        this.statusPayment = statusPayment;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
@@ -152,12 +165,28 @@ public class Transaction {
         this.group = group;
     }
 
-    public boolean isRecurring() {
-        return isRecurring;
+    public PaymentType getPaymentType() {
+        return this.paymentType;
     }
 
-    public void setRecurring(boolean recurring) {
-        isRecurring = recurring;
+    public void setPaymentType(PaymentType paymentType) {
+        this.paymentType = paymentType;
+    }
+
+    public Integer getNumberInstallments() {
+        return numberInstallments;
+    }
+
+    public void setNumberInstallments(Integer numberInstallments) {
+        this.numberInstallments = numberInstallments;
+    }
+
+    public void paga() {
+        this.statusPayment = StatusPayment.PAGO;
+    }
+
+    public void aPagar() {
+        this.statusPayment = StatusPayment.PAGAR;
     }
 
     @Override

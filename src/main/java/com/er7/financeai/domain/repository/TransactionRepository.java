@@ -29,6 +29,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             tc.name as categoria,
             g.name as grupo,
             t.amount as amount,
+            t.status_payment as statusPayment,
             t.created_at as createdAt,
             t.date_process as dateProcess
         from transactions t
@@ -37,11 +38,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         inner join groups g on g.id = t.group_id
         inner join group_members gu on gu.group_id = t.group_id
         inner join users u on u.id = t.user_id
-        where gu.member_id = :userId
-          and gu.status = 'ATIVO'
-        order by g.name, t.created_at desc
+        where 
+            gu.member_id = :userId and 
+            gu.status = 'ATIVO' and
+            t.date_process >= :dateProcessStart and t.date_process <= :dateProcessEnd
+        order by g.name, t.date_process desc
     """, nativeQuery = true)
-    List<TransactionListItem> findAllTransactionsOnUserGroupMemberIsActive(@Param("userId") Long userId);
+    List<TransactionListItem> findAllTransactionsOnUserGroupMemberIsActive(
+            @Param("dateProcessStart") OffsetDateTime dateProcessStart,
+            @Param("dateProcessEnd") OffsetDateTime dateProcessEnd,
+            @Param("userId") Long userId);
 
     List<Transaction> findByUserSubOrderByIdDesc(String userId);
 
