@@ -9,5 +9,7 @@ public record TransactionFilter(
     OffsetDateTime dateProcessStar,
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-    OffsetDateTime dateProcessEnd
+    OffsetDateTime dateProcessEnd,
+
+    String searchTitle
 ) {}

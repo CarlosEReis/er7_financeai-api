@@ -61,7 +61,7 @@ public class TransactionService {
         System.out.println("User" + userId);
         return this.transactionRepository
             .findAllTransactionsOnUserGroupMemberIsActive(
-                    filter.dateProcessStar(), filter.dateProcessEnd(), userId);
+                    filter.dateProcessStar(), filter.dateProcessEnd(), filter.searchTitle(),userId);
     }
 
     /**

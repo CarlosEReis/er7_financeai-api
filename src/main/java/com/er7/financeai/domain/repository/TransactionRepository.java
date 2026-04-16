@@ -41,12 +41,15 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         where 
             gu.member_id = :userId and 
             gu.status = 'ATIVO' and
-            t.date_process >= :dateProcessStart and t.date_process <= :dateProcessEnd
+                t.date_process >= :dateProcessStart and 
+                t.date_process <= :dateProcessEnd and 
+                (:searchTitle IS NULL OR t.name ILIKE concat('%', :searchTitle, '%'))
         order by g.name, t.date_process desc
     """, nativeQuery = true)
     List<TransactionListItem> findAllTransactionsOnUserGroupMemberIsActive(
             @Param("dateProcessStart") OffsetDateTime dateProcessStart,
             @Param("dateProcessEnd") OffsetDateTime dateProcessEnd,
+            @Param("searchTitle") String searchTitle,
             @Param("userId") Long userId);
 
     List<Transaction> findByUserSubOrderByIdDesc(String userId);
