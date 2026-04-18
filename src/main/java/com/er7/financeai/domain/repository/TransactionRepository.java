@@ -1,6 +1,7 @@
 package com.er7.financeai.domain.repository;
 
 import com.er7.financeai.api.model.EstatisticsBalanceResponse;
+import com.er7.financeai.domain.filter.TransactionFilter;
 import com.er7.financeai.domain.model.Transaction;
 import com.er7.financeai.domain.repository.projection.TotalExpensePerCategory;
 import com.er7.financeai.domain.repository.projection.TransactionBalance;
@@ -72,10 +73,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         coalesce(sum(case when t.type = 'DEPOSIT' then t.amount else 0 end), 0) -
         coalesce(sum(case when t.type = 'EXPENSE' then t.amount else 0 end), 0) -
         coalesce(sum(case when t.type = 'INVESTMENT' then t.amount else 0 end), 0) )
-    from Transaction t 
+    from Transaction t
     where t.user.id = :userId
-    """)
-    EstatisticsBalanceResponse balanceObject(@Param("userId") Long userId);
+        and t.date between :startDate and :endDate""")
+    EstatisticsBalanceResponse balanceObject(@Param("startDate") OffsetDateTime startDate, @Param("endDate") OffsetDateTime endDate, @Param("userId") Long userId);
 
     List<TransactionsReportAi> findByUserSubAndDateBetween(String userId, OffsetDateTime dateAfter, OffsetDateTime dateBefore);
 

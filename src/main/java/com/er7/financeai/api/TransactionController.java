@@ -123,10 +123,17 @@ public class TransactionController {
     }
 
     @GetMapping("/statistics/balance")
-    public ResponseEntity<EstatisticsBalanceResponse> transactionBalance(Authentication authentication) {
+    public ResponseEntity<EstatisticsBalanceResponse> transactionBalance(TransactionFilter filter, Authentication authentication) {
+        System.out.println("filter: " + filter);
+
         String userId = authentication.getName();
         User bySub = userService.findBySub(userId);
-        EstatisticsBalanceResponse balance = transactionRepository.balanceObject(bySub.getId());
+        EstatisticsBalanceResponse balance =
+            transactionRepository.balanceObject(
+                filter.dateProcessStar(),
+                filter.dateProcessEnd(),
+                bySub.getId());
+        System.out.println("balance: " + balance);
         return ResponseEntity.ok(balance);
     }
 
