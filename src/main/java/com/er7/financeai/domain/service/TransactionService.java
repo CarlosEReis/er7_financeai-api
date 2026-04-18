@@ -53,12 +53,10 @@ public class TransactionService {
         var transaction = findByIdOrFail(transactionID);
         if (!isOwner(transaction, ownerSubUpdate)) throw new IllegalCallerException("You are not the owner of this transaction");
         transaction.setStatusPayment(statusPayment);
-        System.out.println("StatusPayment" + statusPayment);
         transactionRepository.save(transaction);
     }
 
     public List<TransactionListItem> findAllTransactionsOnUserGroupMemberIsActive(TransactionFilter filter, Long userId) {
-        System.out.println("User" + userId);
         return this.transactionRepository
             .findAllTransactionsOnUserGroupMemberIsActive(
                     filter.dateProcessStar(), filter.dateProcessEnd(), filter.searchTitle(),userId);
@@ -86,8 +84,6 @@ public class TransactionService {
         }
 
         if (PaymentType.PARCELADO.equals(transaction.getPaymentType())) {
-            System.out.println("Parcelado" + transaction.getPaymentType());
-            System.out.println("Parcelado" + transaction.getNumberInstallments());
             transactions = transactionRepository.saveAll(generateParcelTransactionsList(transaction));
             return transactions;
         }

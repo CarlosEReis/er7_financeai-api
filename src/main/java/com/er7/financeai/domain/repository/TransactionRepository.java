@@ -59,8 +59,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     @Query("""
         select t.category.name as categoria, sum(t.amount) as soma from Transaction
-        t where t.user.id = :userId group by t.category.name order by soma desc limit :top""")
-    List<TotalExpensePerCategory> totalExpensePerCategory(@Param("userId") Long userId, @Param("top") int top);
+        t where 
+            t.user.id = :userId
+            and t.date between :startDate and :endDate
+        group by t.category.name order by soma desc limit :top""")
+    List<TotalExpensePerCategory> totalExpensePerCategory(@Param("startDate") OffsetDateTime startDate, @Param("endDate") OffsetDateTime endDate, @Param("userId") Long userId, @Param("top") int top);
 
     @Query("select t.type as type, sum(t.amount) as total from Transaction t where t.user.id = :userId group by t.type")
     List<TransactionBalance> balance(@Param("userId") Long userId);

@@ -101,11 +101,14 @@ public class TransactionController {
     }
 
     @GetMapping("/statistics/total-per-category")
-    public ResponseEntity<List<EstatisticsReponse>> trasactionsPerCategory(Authentication authentication, @RequestParam("top") Integer top) {
+    public ResponseEntity<List<EstatisticsReponse>> trasactionsPerCategory(TransactionFilter transactionFilter, @RequestParam("top") Integer top, Authentication authentication) {
         String userId = authentication.getName();
         User bySub = userService.findBySub(userId);
 
-        List<TotalExpensePerCategory> transactionsPerCategory = transactionRepository.totalExpensePerCategory(bySub.getId(), top);
+        List<TotalExpensePerCategory> transactionsPerCategory = transactionRepository.totalExpensePerCategory(
+                transactionFilter.dateProcessStar(),
+                transactionFilter.dateProcessEnd(),
+                bySub.getId(), top);
 
         if (transactionsPerCategory.isEmpty()) {
             return ResponseEntity.ok(List.of());
@@ -124,8 +127,6 @@ public class TransactionController {
 
     @GetMapping("/statistics/balance")
     public ResponseEntity<EstatisticsBalanceResponse> transactionBalance(TransactionFilter filter, Authentication authentication) {
-        System.out.println("filter: " + filter);
-
         String userId = authentication.getName();
         User bySub = userService.findBySub(userId);
         EstatisticsBalanceResponse balance =
@@ -133,7 +134,6 @@ public class TransactionController {
                 filter.dateProcessStar(),
                 filter.dateProcessEnd(),
                 bySub.getId());
-        System.out.println("balance: " + balance);
         return ResponseEntity.ok(balance);
     }
 
